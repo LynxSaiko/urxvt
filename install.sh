@@ -95,7 +95,7 @@ install_package() {
 GLIB_URL="https://download.gnome.org/sources/glib/2.72/glib-2.72.3.tar.xz"
 GOBJECT_INTROSPECTION_URL="https://download.gnome.org/sources/gobject-introspection/1.72/gobject-introspection-1.72.0.tar.xz"
 WEBKITGTK_URL="https://webkitgtk.org/releases/webkitgtk-2.36.7.tar.xz"
-PCRE_URL="https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.bz2"
+PCRE_URL="https://ftp.exim.org/pub/pcre/pcre-8.40.tar.bz2"
 
 # Mengunduh dan menginstal GLib 2.72.3
 install_package "glib-2.72.3" "$GLIB_URL"
