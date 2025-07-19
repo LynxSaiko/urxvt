@@ -36,3 +36,6 @@ urxvt.iso14755:               false
 urxvt.iso14755_52:            false
 URxvt.geometry:               80x28
 EOF
+cat >> /etc/X11/app-defaults/XTerm << "EOF"
+
+EOF
