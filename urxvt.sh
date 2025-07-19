@@ -37,5 +37,27 @@ urxvt.iso14755_52:            false
 URxvt.geometry:               80x28
 EOF
 cat >> /etc/X11/app-defaults/XTerm << "EOF"
+! xterm
+xterm*VT100*geometry:         76x24
+xterm*faceName:               xft:xos4 Terminus:size=13:style=bold:antialias=true
+xterm*faceSize:               12
+xterm*renderFont:             true
+xterm*utf8:                   always
+xterm*utf8Title:              true
+xterm*locale:                 true
+xterm*cursorColor:            #5f5faf
+xterm*cursorBlink:            false
+xterm*selectToClipboard:      true
+xterm*SaveLines:              10000
+xterm*transparent:            true
+XTerm*trimSelection:          true
+XTerm*cutNewline:             false
+XTerm*highlightSelection:     true
 
+! cursor
+Xcursor.theme:                Adwaita
+Xcursor.size:                 12
+
+! xft
+xft.antialias:                true
 EOF
