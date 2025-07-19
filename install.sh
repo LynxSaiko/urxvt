@@ -37,7 +37,7 @@ install_package() {
                 --buildtype=release \
                 -Dman=false \
                 --wrap-mode=nodownload ..
-    ninja
+    ninja -j$(nproc)
   else
     echo "Menyiapkan dan mengonfigurasi $PACKAGE_NAME..."
     ./configure --prefix="$INSTALL_DIR" --disable-static
@@ -78,7 +78,7 @@ meson setup --prefix="$INSTALL_DIR" \
             -Dman=false \
             -Dintrospection=enabled \
             --wrap-mode=nodownload ..
-ninja
+ninja -j$(nproc)
 sudo ninja install
 cd "$DOWNLOAD_DIR"
 
