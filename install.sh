@@ -1,131 +1,168 @@
 #!/bin/bash
+# install_glib_stack.sh
+# Bangun PCRE -> GLib (tahap1) -> GObject Introspection -> GLib (tahap2) -> WebKitGTK
+# Jalankan sebagai root di sistem LFS/BLFS.
 
-# Direktori untuk menyimpan file unduhan
+set -euo pipefail
+
 DOWNLOAD_DIR="/home/leakos/downloads"
-INSTALL_DIR="/usr/local"
+PREFIX="/usr"             # paket inti BLFS ke /usr
+BUILD_JOBS="$(nproc)"     # paralel build
 
-# Membuat direktori unduhan jika belum ada
+# ====== URL ======
+PCRE_URL="https://ftp.exim.org/pub/pcre/pcre-8.45.tar.bz2"
+GLIB_URL="https://download.gnome.org/sources/glib/2.72/glib-2.72.3.tar.xz"
+GI_URL="https://download.gnome.org/sources/gobject-introspection/1.72/gobject-introspection-1.72.0.tar.xz"
+WEBKITGTK_URL="https://webkitgtk.org/releases/webkitgtk-2.36.7.tar.xz"
+
+# Opsional patch GLib: simpan file di $DOWNLOAD_DIR
+GLIB_PATCH="$DOWNLOAD_DIR/glib-2.72.3-skip_warnings-1.patch"
+
 mkdir -p "$DOWNLOAD_DIR"
 cd "$DOWNLOAD_DIR"
 
-# Fungsi untuk mengunduh dan menginstal paket
-install_package() {
-  local PACKAGE_NAME=$1
-  local PACKAGE_URL=$2
-  local PACKAGE_TAR=${PACKAGE_NAME}.tar.xz
-
-  # Mengunduh file tarball dengan --no-check-certificate
-  echo "Mengunduh $PACKAGE_NAME..."
-  wget --no-check-certificate "$PACKAGE_URL" -O "$PACKAGE_TAR"
-  if [ $? -ne 0 ]; then
-    echo "Gagal mengunduh $PACKAGE_NAME"
+# ------------------------------------------------------------
+# helper: download & extract
+# arg1=url
+# sets: TARFILE, SRCDIR
+# ------------------------------------------------------------
+fetch_and_extract() {
+  local url="$1"
+  local tarfile="$(basename "$url")"
+  local srcdir
+  echo "==> Mengunduh: $tarfile"
+  wget --no-check-certificate -c "$url" -O "$tarfile"
+  echo "==> Mengekstrak: $tarfile"
+  tar -xf "$tarfile"
+  # nama direktori sumber = tarfile tanpa .tar.*
+  srcdir="$(tar -tf "$tarfile" | head -1 | cut -d/ -f1)"
+  if [[ ! -d "$srcdir" ]]; then
+    echo "Gagal deteksi direktori sumber dari $tarfile" >&2
     exit 1
   fi
+  TARFILE="$tarfile"
+  SRCDIR="$srcdir"
+}
 
-  # Mengekstrak file tarball
-  echo "Mengekstrak $PACKAGE_NAME..."
-  if [[ "$PACKAGE_TAR" == *.tar.xz ]]; then
-    tar -xvf "$PACKAGE_TAR"
-  elif [[ "$PACKAGE_TAR" == *.tar.bz2 ]]; then
-    tar -xvjf "$PACKAGE_TAR"
-  fi
-  cd "$PACKAGE_NAME"
+# ------------------------------------------------------------
+# PCRE (autotools)
+# ------------------------------------------------------------
+build_pcre() {
+  fetch_and_extract "$PCRE_URL"
+  cd "$SRCDIR"
 
-  # Terapkan patch GLib jika tersedia
-  if [ -f "$DOWNLOAD_DIR/glib-2.72.3-skip_warnings-1.patch" ]; then
-    echo "Menerapkan patch untuk menghapus peringatan di GLib..."
-    patch -Np1 -i "$DOWNLOAD_DIR/glib-2.72.3-skip_warnings-1.patch"
-  fi
+  ./configure --prefix="$PREFIX" \
+    --enable-unicode-properties \
+    --enable-pcre16 \
+    --enable-pcre32 \
+    --enable-pcregrep-libz \
+    --enable-pcregrep-libbz2 \
+    --enable-pcretest-libreadline \
+    --disable-static
 
-  # Menyusun dengan Meson dan Ninja (untuk GLib dan WebKitGTK)
-  if [ "$PACKAGE_NAME" == "glib-2.72.3" ] || [ "$PACKAGE_NAME" == "webkitgtk-2.36.7" ]; then
-    echo "Menyiapkan dan mengonfigurasi $PACKAGE_NAME dengan Meson dan Ninja..."
-    mkdir build
-    cd build
-    meson --prefix="$INSTALL_DIR" \
-          --buildtype=release \
-          -Dman=true \
-          .. \
-          && ninja
-    if [ $? -ne 0 ]; then
-      echo "Gagal mengonfigurasi dan membangun $PACKAGE_NAME"
-      exit 1
-    fi
-  else
-    # Menyusun dengan configure dan make (untuk PCRE dan GObject Introspection)
-    echo "Menyiapkan dan mengonfigurasi $PACKAGE_NAME..."
-    ./configure --prefix="$INSTALL_DIR" \
-                --docdir="$INSTALL_DIR/share/doc/$PACKAGE_NAME" \
-                --enable-unicode-properties \
-                --enable-pcre16 \
-                --enable-pcre32 \
-                --enable-pcregrep-libz \
-                --enable-pcregrep-libbz2 \
-                --enable-pcretest-libreadline \
-                --disable-static
-    if [ $? -ne 0 ]; then
-      echo "Gagal mengonfigurasi $PACKAGE_NAME"
-      exit 1
-    fi
+  make -j"$BUILD_JOBS"
+  make install
 
-    # Menyusun dengan make
-    echo "Membangun $PACKAGE_NAME..."
-    make
-    if [ $? -ne 0 ]; then
-      echo "Gagal membangun $PACKAGE_NAME"
-      exit 1
-    fi
-  fi
-
-  # Menginstal dengan make install atau ninja install
-  echo "Menginstal $PACKAGE_NAME..."
-  if [ "$PACKAGE_NAME" == "glib-2.72.3" ] || [ "$PACKAGE_NAME" == "webkitgtk-2.36.7" ]; then
-    sudo ninja install
-  else
-    sudo make install
-  fi
-
-  # Salin dokumentasi (untuk GLib dan WebKitGTK)
-  if [ "$PACKAGE_NAME" == "glib-2.72.3" ]; then
-    mkdir -p /usr/share/doc/glib-2.72.3
-    cp -r ../docs/reference/{gio,glib,gobject} /usr/share/doc/glib-2.72.3
-  fi
-
-  # Kembali ke direktori unduhan
   cd "$DOWNLOAD_DIR"
 }
 
-# URL untuk mengunduh GLib 2.72.3
-GLIB_URL="https://download.gnome.org/sources/glib/2.72/glib-2.72.3.tar.xz"
-GOBJECT_INTROSPECTION_URL="https://download.gnome.org/sources/gobject-introspection/1.72/gobject-introspection-1.72.0.tar.xz"
-WEBKITGTK_URL="https://webkitgtk.org/releases/webkitgtk-2.36.7.tar.xz"
-PCRE_URL="https://ftp.exim.org/pub/pcre/pcre-8.40.tar.bz2"  # Update URL ke versi yang tepat
+# ------------------------------------------------------------
+# GLib common build function
+# $1 = extra meson opts
+# $2 = label (tahap1/tahap2)
+# ------------------------------------------------------------
+build_glib() {
+  local extra="$1"
+  local label="$2"
+  fetch_and_extract "$GLIB_URL"
+  cd "$SRCDIR"
 
-# Mengunduh dan menginstal GLib 2.72.3
-install_package "glib-2.72.3" "$GLIB_URL"
+  # patch opsional
+  if [[ -f "$GLIB_PATCH" ]]; then
+    echo "==> Menerapkan patch GLib..."
+    patch -Np1 -i "$GLIB_PATCH"
+  fi
 
-# Mengunduh dan menginstal GObject Introspection 1.72.0
-install_package "gobject-introspection-1.72.0" "$GOBJECT_INTROSPECTION_URL"
+  mkdir build && cd build
+  meson setup --prefix="$PREFIX" \
+    --buildtype=release \
+    -Dman=false \               # jangan bangun man (hindari DocBook online)
+    $extra \
+    --wrap-mode=nodownload \
+    ..
+  ninja -j"$BUILD_JOBS"
+  ninja install
 
-# Mengunduh dan menginstal WebKitGTK 2.36.7
-install_package "webkitgtk-2.36.7" "$WEBKITGTK_URL"
+  # dokumentasi referensi (HTML) opsional: butuh tools lain; skip dulu.
 
-# Mengunduh dan menginstal PCRE 8.40 (versi yang benar)
-install_package "pcre-8.40" "$PCRE_URL"
+  cd "$DOWNLOAD_DIR"
+}
 
-# Verifikasi instalasi
-echo "Verifikasi instalasi GLib..."
-pkg-config --modversion glib-2.0
-pkg-config --modversion gobject-2.0
-pkg-config --modversion gthread-2.0
+# ------------------------------------------------------------
+# GObject Introspection (Meson)
+# ------------------------------------------------------------
+build_gi() {
+  fetch_and_extract "$GI_URL"
+  cd "$SRCDIR"
+  mkdir build && cd build
+  meson setup --prefix="$PREFIX" \
+    --buildtype=release \
+    --wrap-mode=nodownload \
+    ..
+  ninja -j"$BUILD_JOBS"
+  ninja install
+  cd "$DOWNLOAD_DIR"
+}
 
-echo "Verifikasi instalasi GObject Introspection..."
-pkg-config --modversion gobject-introspection-1.0
+# ------------------------------------------------------------
+# WebKitGTK (Meson; sangat berat; banyak dep)
+# ------------------------------------------------------------
+build_webkitgtk() {
+  fetch_and_extract "$WEBKITGTK_URL"
+  cd "$SRCDIR"
+  mkdir build && cd build
+  meson setup --prefix="$PREFIX" \
+    --buildtype=release \
+    -Dman=false \
+    --wrap-mode=nodownload \
+    ..
+  ninja -j"$BUILD_JOBS"
+  ninja install
+  cd "$DOWNLOAD_DIR"
+}
 
-echo "Verifikasi instalasi WebKitGTK..."
-pkg-config --modversion webkit2gtk-4.0
+# ============================================================
+# EXECUTION ORDER
+# ============================================================
+echo "========== [1/5] PCRE =========="
+build_pcre
 
-echo "Verifikasi instalasi PCRE..."
-pcre-config --version
+echo "========== [2/5] GLib tahap-1 (tanpa introspection) =========="
+build_glib "-Dintrospection=disabled" "tahap1"
 
-echo "Instalasi selesai!"
+echo "========== [3/5] GObject Introspection =========="
+build_gi
+
+echo "========== [4/5] GLib tahap-2 (aktifkan introspection) =========="
+# Rebuild GLib dengan introspection enabled.
+build_glib "-Dintrospection=enabled" "tahap2"
+
+echo "========== [5/5] WebKitGTK =========="
+build_webkitgtk
+
+# ============================================================
+# Verifikasi
+# ============================================================
+echo "========== Verifikasi =========="
+pkg-config --modversion glib-2.0 || echo "GLib tidak terdeteksi!"
+pkg-config --modversion gobject-2.0 || true
+pkg-config --modversion gthread-2.0 || true
+pkg-config --modversion gobject-introspection-1.0 || echo "GI tidak terdeteksi!"
+pkg-config --modversion webkit2gtk-4.0 || echo "WebKitGTK tidak terdeteksi!"
+if command -v pcre-config >/dev/null 2>&1; then
+  pcre-config --version
+else
+  pkg-config --modversion libpcre || true
+fi
+
+echo "=== Selesai! ==="
