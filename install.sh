@@ -27,48 +27,75 @@ install_package() {
   tar -xvf "$PACKAGE_TAR"
   cd "$PACKAGE_NAME"
 
-  # Terapkan patch opsional (jika ada)
-  if [ -f "../glib-2.72.3-skip_warnings-1.patch" ]; then
-    echo "Menerapkan patch untuk menghapus peringatan..."
-    patch -Np1 -i "../glib-2.72.3-skip_warnings-1.patch"
+  # Terapkan patch GLib jika tersedia
+  if [ -f "$DOWNLOAD_DIR/glib-2.72.3-skip_warnings-1.patch" ]; then
+    echo "Menerapkan patch untuk menghapus peringatan di GLib..."
+    patch -Np1 -i "$DOWNLOAD_DIR/glib-2.72.3-skip_warnings-1.patch"
   fi
 
-  # Menyusun dengan Meson dan Ninja
-  echo "Menyiapkan dan mengonfigurasi $PACKAGE_NAME menggunakan Meson..."
-  mkdir build
-  cd build
-  meson --prefix="$INSTALL_DIR" \
-        --buildtype=release \
-        -Dman=true \
-        .. \
-        && ninja
+  # Menyusun dengan Meson dan Ninja (untuk GLib dan WebKitGTK)
+  if [ "$PACKAGE_NAME" == "glib-2.72.3" ] || [ "$PACKAGE_NAME" == "webkitgtk-2.36.7" ]; then
+    echo "Menyiapkan dan mengonfigurasi $PACKAGE_NAME dengan Meson dan Ninja..."
+    mkdir build
+    cd build
+    meson --prefix="$INSTALL_DIR" \
+          --buildtype=release \
+          -Dman=true \
+          .. \
+          && ninja
+    if [ $? -ne 0 ]; then
+      echo "Gagal mengonfigurasi dan membangun $PACKAGE_NAME"
+      exit 1
+    fi
+  else
+    # Menyusun dengan configure dan make (untuk PCRE dan GObject Introspection)
+    echo "Menyiapkan dan mengonfigurasi $PACKAGE_NAME..."
+    ./configure --prefix="$INSTALL_DIR" \
+                --docdir="$INSTALL_DIR/share/doc/$PACKAGE_NAME" \
+                --enable-unicode-properties \
+                --enable-pcre16 \
+                --enable-pcre32 \
+                --enable-pcregrep-libz \
+                --enable-pcregrep-libbz2 \
+                --enable-pcretest-libreadline \
+                --disable-static
+    if [ $? -ne 0 ]; then
+      echo "Gagal mengonfigurasi $PACKAGE_NAME"
+      exit 1
+    fi
 
-  if [ $? -ne 0 ]; then
-    echo "Gagal mengonfigurasi dan membangun $PACKAGE_NAME dengan Meson dan Ninja"
-    exit 1
+    # Menyusun dengan make
+    echo "Membangun $PACKAGE_NAME..."
+    make
+    if [ $? -ne 0 ]; then
+      echo "Gagal membangun $PACKAGE_NAME"
+      exit 1
+    fi
   fi
 
-  # Menginstal dengan Ninja
+  # Menginstal dengan make install atau ninja install
   echo "Menginstal $PACKAGE_NAME..."
-  sudo ninja install
+  if [ "$PACKAGE_NAME" == "glib-2.72.3" ] || [ "$PACKAGE_NAME" == "webkitgtk-2.36.7" ]; then
+    sudo ninja install
+  else
+    sudo make install
+  fi
 
-  # Salin dokumentasi
-  mkdir -p /usr/share/doc/glib-2.72.3
-  cp -r ../docs/reference/{gio,glib,gobject} /usr/share/doc/glib-2.72.3
+  # Salin dokumentasi (untuk GLib dan WebKitGTK)
+  if [ "$PACKAGE_NAME" == "glib-2.72.3" ]; then
+    mkdir -p /usr/share/doc/glib-2.72.3
+    cp -r ../docs/reference/{gio,glib,gobject} /usr/share/doc/glib-2.72.3
+  fi
 
   # Kembali ke direktori unduhan
   cd "$DOWNLOAD_DIR"
 }
 
-# Cek apakah file patch ada di direktori
-if [ ! -f "../glib-2.72.3-skip_warnings-1.patch" ]; then
-  echo "File patch tidak ditemukan. Anda dapat mengunduhnya jika perlu."
-fi
-
-# URL yang benar untuk mengunduh GLib 2.72.3
+# URL untuk mengunduh GLib 2.72.3
 GLIB_URL="https://download.gnome.org/sources/glib/2.72/glib-2.72.3.tar.xz"
 GOBJECT_INTROSPECTION_URL="https://download.gnome.org/sources/gobject-introspection/1.72/gobject-introspection-1.72.0.tar.xz"
 WEBKITGTK_URL="https://webkitgtk.org/releases/webkitgtk-2.36.7.tar.xz"
+PCRE_URL="https://sourceforge.net/projects/pcre/files/pcre/8.45/pcre-8.45.tar.bz2"
 
 # Mengunduh dan menginstal GLib 2.72.3
 install_package "glib-2.72.3" "$GLIB_URL"
@@ -78,6 +105,9 @@ install_package "gobject-introspection-1.72.0" "$GOBJECT_INTROSPECTION_URL"
 
 # Mengunduh dan menginstal WebKitGTK 2.36.7
 install_package "webkitgtk-2.36.7" "$WEBKITGTK_URL"
+
+# Mengunduh dan menginstal PCRE 8.45
+install_package "pcre-8.45" "$PCRE_URL"
 
 # Verifikasi instalasi
 echo "Verifikasi instalasi GLib..."
@@ -90,5 +120,8 @@ pkg-config --modversion gobject-introspection-1.0
 
 echo "Verifikasi instalasi WebKitGTK..."
 pkg-config --modversion webkit2gtk-4.0
+
+echo "Verifikasi instalasi PCRE..."
+pcre-config --version
 
 echo "Instalasi selesai!"
