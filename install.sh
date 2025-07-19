@@ -24,7 +24,11 @@ install_package() {
 
   # Mengekstrak file tarball
   echo "Mengekstrak $PACKAGE_NAME..."
-  tar -xvf "$PACKAGE_TAR"
+  if [[ "$PACKAGE_TAR" == *.tar.xz ]]; then
+    tar -xvf "$PACKAGE_TAR"
+  elif [[ "$PACKAGE_TAR" == *.tar.bz2 ]]; then
+    tar -xvjf "$PACKAGE_TAR"
+  fi
   cd "$PACKAGE_NAME"
 
   # Terapkan patch GLib jika tersedia
@@ -95,7 +99,7 @@ install_package() {
 GLIB_URL="https://download.gnome.org/sources/glib/2.72/glib-2.72.3.tar.xz"
 GOBJECT_INTROSPECTION_URL="https://download.gnome.org/sources/gobject-introspection/1.72/gobject-introspection-1.72.0.tar.xz"
 WEBKITGTK_URL="https://webkitgtk.org/releases/webkitgtk-2.36.7.tar.xz"
-PCRE_URL="https://ftp.exim.org/pub/pcre/pcre-8.40.tar.bz2"
+PCRE_URL="https://ftp.exim.org/pub/pcre/pcre-8.40.tar.bz2"  # Update URL ke versi yang tepat
 
 # Mengunduh dan menginstal GLib 2.72.3
 install_package "glib-2.72.3" "$GLIB_URL"
@@ -106,8 +110,8 @@ install_package "gobject-introspection-1.72.0" "$GOBJECT_INTROSPECTION_URL"
 # Mengunduh dan menginstal WebKitGTK 2.36.7
 install_package "webkitgtk-2.36.7" "$WEBKITGTK_URL"
 
-# Mengunduh dan menginstal PCRE 8.45
-install_package "pcre-8.45" "$PCRE_URL"
+# Mengunduh dan menginstal PCRE 8.40 (versi yang benar)
+install_package "pcre-8.40" "$PCRE_URL"
 
 # Verifikasi instalasi
 echo "Verifikasi instalasi GLib..."
