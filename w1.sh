@@ -7,6 +7,19 @@ WEBKIT_PKG="webkitgtk-${WEBKIT_VERSION}.tar.xz"
 WEBKIT_URL="https://webkitgtk.org/releases/${WEBKIT_PKG}"
 SURF_REPO="https://github.com/lkiesow/surf.git"
 
+# Fungsi untuk memeriksa apakah file atau pustaka ada
+check_dependency() {
+    FILE_PATH=$1
+    if [ ! -f "$FILE_PATH" ]; then
+        echo "[*] Dependency not found: $FILE_PATH"
+        echo "[*] Please install the missing dependency."
+        exit 1
+    else
+        echo "[*] Dependency found: $FILE_PATH"
+    fi
+}
+
+# Memastikan direktori sumber ada
 mkdir -p $SRC_DIR
 cd $SRC_DIR
 
@@ -28,6 +41,16 @@ cd webkitgtk-${WEBKIT_VERSION}
 echo "[*] Creating build directory..."
 mkdir -p build && cd build
 
+# ==============================
+# Memastikan semua dependensi diperlukan terinstal
+# ==============================
+echo "[*] Checking dependencies..."
+check_dependency "/usr/include/gtk-3.0/gtk/gtk.h" # GTK
+check_dependency "/usr/include/webkit2gtk-4.0/webkit2/webkit2.h" # WebKitGTK
+
+# ==============================
+# Configuring WebKitGTK2
+# ==============================
 echo "[*] Configuring WebKitGTK2..."
 cmake .. \
   -DCMAKE_BUILD_TYPE=Release \
@@ -51,11 +74,11 @@ make -j$(nproc)
 echo "[*] Installing WebKitGTK2..."
 sudo make install
 
-cd $SRC_DIR
-
 # ==============================
 # Step 2: Build Surf
 # ==============================
+cd $SRC_DIR
+
 echo "[*] Building Surf browser..."
 
 if [ -d "surf" ]; then
