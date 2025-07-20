@@ -15,20 +15,67 @@ begin() {
 finish() {
 	echo "Finishing build of $package_name at $(date)"
 
-	cd $LFS/sources
+	cd /download1
 	rm -rf $package_name
 }
-cd /home/leakos/download
-wget https://download.gnome.org/sources/cairo/1.17/cairo-1.17.6.tar.xz
-begin cairo-1.17.6 tar.xz
-cd cairo-1.17.6
-sed 's/PTR/void */' -i util/cairo-trace/lookup-symbol.c
-sed -e "/@prefix@/a exec_prefix=@exec_prefix@" \
-    -i util/cairo-script/cairo-script-interpreter.pc.in
+cd /download1
 
-./configure --prefix=/usr    \
-            --disable-static \
-            --enable-tee &&
-make -j$(nproc)
+echo "[*] Build Atk [*]"
+wget https://download.gnome.org/sources/atk/2.38/atk-2.38.0.tar.xz
+begin atk-2.38.0 tar.xz
+cd atk-2.38.0
+mkdir build &&
+cd    build &&
+
+meson --prefix=/usr --buildtype=release .. &&
+ninja
+finish 
+
+echo "[*] Build Shared Mime [*]"
+wget https://gitlab.freedesktop.org/xdg/shared-mime-info/-/archive/2.2/shared-mime-info-2.2.tar.gz
+wget https://anduin.linuxfromscratch.org/BLFS/xdgmime/xdgmime.tar.xz
+begin shared-mime-info-2.2 tar.xz
+cd shared-mime-info-2.2
+tar -xf xdgmime.tar.xz &&
+make -C xdgmime
+mkdir build &&
+cd    build &&
+
+meson --prefix=/usr --buildtype=release -Dupdate-mimedb=true .. &&
+ninja
+ninja install
+finish
+
+echo "[*] Build Gdk Pixbuf [*]"
+wget https://download.gnome.org/sources/gdk-pixbuf/2.42/gdk-pixbuf-2.42.9.tar.xz
+begin gdk-pixbuf-2.42.9 tar.xz
+cd gdk-pixbuf-2.42.9
+mkdir build &&
+cd    build &&
+meson --prefix=/usr --buildtype=release --wrap-mode=nofallback .. &&
+ninja
+finish
+
+
+echo "[*] Build Gtk+2 [*]"
+wget https://download.gnome.org/sources/gtk+/2.24/gtk+-2.24.33.tar.xz
+begin gtk+-2.24.33 tar.xz
+cd tk+-2.24.33
+sed -e 's#l \(gtk-.*\).sgml#& -o \1#' \
+    -i docs/{faq,tutorial}/Makefile.in      &&
+
+./configure --prefix=/usr --sysconfdir=/etc &&
+
+make
 make install
+gtk-query-immodules-2.0 --update-cache
+cat > ~/.gtkrc-2.0 << "EOF"
+include "/usr/share/themes/Glider/gtk-2.0/gtkrc"
+gtk-icon-theme-name = "hicolor"
+EOF
 
+cat > /etc/gtk-2.0/gtkrc << "EOF"
+include "/usr/share/themes/Clearlooks/gtk-2.0/gtkrc"
+gtk-icon-theme-name = "elementary"
+EOF
+finish
