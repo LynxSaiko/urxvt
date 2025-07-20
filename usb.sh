@@ -3,7 +3,7 @@
 make
 make install
 install -dm755 /usr/share/hwdata/ &&
-wget http://www.linux-usb.org/usb.ids -O /usr/share/hwdata/usb.ids
+wget --no-check-certificate http://www.linux-usb.org/usb.ids -O /usr/share/hwdata/usb.ids
 cat > /etc/cron.weekly/update-usbids.sh << "EOF" &&
 #!/bin/bash
 /usr/bin/wget http://www.linux-usb.org/usb.ids -O /usr/share/hwdata/usb.ids
