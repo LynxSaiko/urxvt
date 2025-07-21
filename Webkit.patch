@@ -1,0 +1,10 @@
+--- a/Source/WTF/wtf/CryptographicUtilities.h
++++ b/Source/WTF/wtf/CryptographicUtilities.h
+@@ -26,6 +26,11 @@
+ #pragma once
++
++#include "ExportMacros.h"
++
++#ifndef HAVE
++#define HAVE(x) 0
++#endif
