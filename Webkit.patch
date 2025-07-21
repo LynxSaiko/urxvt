@@ -1,10 +1,13 @@
---- a/Source/WTF/wtf/CryptographicUtilities.h
-+++ b/Source/WTF/wtf/CryptographicUtilities.h
-@@ -26,6 +26,11 @@
+diff -uNr webkitgtk-2.36.7.orig/Source/WTF/wtf/CryptographicUtilities.h webkitgtk-2.36.7/Source/WTF/wtf/CryptographicUtilities.h
+--- webkitgtk-2.36.7.orig/Source/WTF/wtf/CryptographicUtilities.h	2022-05-01 00:00:00.000000000 +0000
++++ webkitgtk-2.36.7/Source/WTF/wtf/CryptographicUtilities.h	2025-07-21 00:00:00.000000000 +0000
+@@ -20,6 +20,13 @@
  #pragma once
-+
+
 +#include "ExportMacros.h"
 +
 +#ifndef HAVE
 +#define HAVE(x) 0
 +#endif
++
+ /* rest of file unchanged */
